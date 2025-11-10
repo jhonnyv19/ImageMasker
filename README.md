@@ -45,12 +45,25 @@ Note that a caveat of this implementation is that it requires the embedding dime
 
 ### Formalism
 
-Let $`x \in \mathbb{R}^{H \times W \times C}`$ be a single image, and let $`m_{\theta}: x \rightarrow \mathbb{R}^{L \times 1}`$ be the patch selection network parameterized by $\theta$, where each score $\left(m_{\theta}(x)\right)_i \in [0, 1]$ corresponds to the importance of a patch in the image. Here, $L$ is the total number of patches in the image.
+Let $x \in \mathbb{R}^{H \times W \times C}$ be a single image, and let $`m_{\theta}: x \rightarrow \mathbb{R}^{L \times 1}`$ be the patch selection network parameterized by $\theta$, where each score $\left(m_{\theta}(x)\right)_i \in [0, 1]$ corresponds to the importance of a patch in the image. Here, $L$ is the total number of patches in the image.
 
 Let $E_{mae}(x) \in \mathbb{R}^{L \times D}$ be the patch embeddings produced by the MAE encoder, and let $t_{mae} \in \mathbb{R}^{1 \times D}$ be the learned mask token embedding from the MAE decoder.
 
-The modified patch embeddings $E_{mod} \in \mathbb{R}^{L \times D}$ are computed either as a linear interpolation between the features and mask tokens, or sampled using the Gumbel Softmax. For the case of the linear interpolation, we have:
+The modified patch embeddings $E_{mod} \in \mathbb{R}^{L \times D}$ are computed using one of two approaches:
+
+#### Linear Interpolation (Soft Masking)
 $$E_{mod} = m_{\theta}(x) \odot E_{mae}(x) + (1 - m_{\theta}(x)) \odot t_{mae}$$
+
+#### Gumbel-Softmax Reparameterization
+During training, we use the Gumbel-Softmax trick for Bernoulli random variables, as outlines in [[Zin](https://j-zin.github.io/files/Gumbel_Softmax_for_Binary_Case.pdf)] to maintain differentiability while encouraging discrete decisions. Given mask probabilities $p = m_{\theta}(x)$ and temperature $\tau$, we compute:
+
+$$\tilde{p} = \sigma\left\\{\frac{1}{\tau}\left(\log\frac{p}{1-p} + \log\frac{u}{1-u}\right)\right\\}$$
+
+where $\sigma(x) = \frac{1}{1+e^{-x}}$ is the sigmoid function, $u \sim \text{Uniform}(0,1)$ is random noise, and $\tau$ is the temperature coefficient. The reparameterized probabilities $\tilde{p}$ are then used in place of $m_{\theta}(x)$ for the linear interpolation:
+
+$$E_{mod} = \tilde{p} \odot E_{mae}(x) + (1 - \tilde{p}) \odot t_{mae}$$
+
+This reparameterization allows gradients to flow through the sampling process while encouraging increasingly binary decisions as $\tau \to 0$.
 
 The MAE decoder $D_{mae}$ then reconstructs the full image $\hat{x} \in \mathbb{R}^{H \times W \times C}$ from the modified embeddings:
 $$\hat{x} = D_{mae}(E_{mod})$$
