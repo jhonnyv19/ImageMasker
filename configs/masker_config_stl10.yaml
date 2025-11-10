@@ -1,0 +1,58 @@
+# config.yaml
+
+# Seed for reproducibility
+seed_everything: 42
+
+compile: true
+compile_kwargs:
+  fullgraph: true
+  mode: "default"
+
+# Trainer configuration
+trainer:
+  enable_model_summary: true
+  num_sanity_val_steps: 0
+  precision: "16-mixed"
+  accelerator: auto
+  devices: auto
+  max_epochs: 1000
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      project: image-masker
+      mode: online
+  callbacks:
+    - class_path: src.callbacks.ComprehensiveMaskingVisualizationCallback
+      init_args:
+        use_hard_masks: false
+    - class_path: src.callbacks.ComprehensiveMaskingVisualizationCallback
+      init_args:
+        use_hard_masks: true
+  check_val_every_n_epoch: 5
+  log_every_n_steps: 10
+  gradient_clip_val: .05
+
+# Model configuration
+model:
+  class_path: src.lit_models.LitMaskingModel
+  init_args:
+    lr: 1.5e-4
+    weight_decay: 0.01
+    mean_reg: 3e-2
+    entropy_reg: 1e-3
+    patch_size: 6
+    image_size: 96
+    embed_dim: 192
+    num_layers: 2
+    num_heads: 4
+    mae_checkpoint_path: checkpoints/mae_stl10/slurm_108372/checkpoints/mae-stl10-model-epoch=249.ckpt # "pretrained_mae/mae_cifar10.pt"
+    log_interval: 100
+    total_batch_size: 512 # total batch size for all devices, set manually
+# Data module configuration
+data:
+  class_path: src.datasets.STL10Data
+  init_args:
+    data_dir: data/
+    batch_size: 512
+    train_workers: 6
+    val_workers: 2

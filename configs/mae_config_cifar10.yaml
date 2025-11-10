@@ -1,0 +1,53 @@
+# mae_config.yaml
+
+# Seed for reproducibility
+seed_everything: 42
+compile: true
+compile_kwargs:
+  fullgraph: true 
+  mode: "default"
+
+# Trainer configuration
+trainer:
+  precision: "16-mixed"
+  accelerator: auto
+  devices: auto
+  max_epochs: 2000
+  enable_progress_bar: true
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      project: mae-pretrain-cifar10
+      mode: online
+  check_val_every_n_epoch: 5
+  log_every_n_steps: 10
+  num_sanity_val_steps: 0
+  accumulate_grad_batches: 2 # total_batch_size / batch_size
+  # gradient_clip_val: .05
+
+# Model configuration
+model:
+  class_path: src.lit_models.LitMAE
+  init_args:
+    total_batch_size: 4096
+    lr: 1.5e-4
+    weight_decay: 0.05
+    mask_ratio: 0.75
+    warmup_epochs: 200
+    image_size: 32
+    patch_size: 2 # (32 // 2) ** 2 = 256 patches
+    enc_emb_dim: 192
+    dec_emb_dim: 192
+    encoder_layer: 12
+    encoder_head: 3
+    decoder_layer: 4
+    decoder_head: 3
+
+# Data module configuration
+data:
+  class_path: src.datasets.CIFAR10Data
+  init_args:
+    data_dir: data/
+    batch_size: 2048
+    train_workers: 6
+    val_workers: 2

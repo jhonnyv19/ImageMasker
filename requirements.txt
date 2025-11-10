@@ -1,0 +1,9 @@
+torch
+torchvision
+lightning
+wandb
+einops
+numpy
+matplotlib
+scikit-learn
+jsonargparse[signatures]

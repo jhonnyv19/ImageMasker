@@ -1,0 +1,53 @@
+# mae_config.yaml
+
+# Seed for reproducibility
+seed_everything: 42
+compile: true
+compile_kwargs:
+  fullgraph: true 
+  mode: "max-autotune-no-cudagraphs"
+
+# Trainer configuration
+trainer:
+  precision: "16-mixed"
+  accelerator: auto
+  devices: 2
+  max_epochs: 1000
+  enable_progress_bar: true
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      project: mae-pretrain-stl10
+      mode: disabled
+  check_val_every_n_epoch: 5
+  log_every_n_steps: 10
+  accumulate_grad_batches: 4 # total_batch_size = 512 * 4 * 2 gpus = 4096
+  num_sanity_val_steps: 0
+  gradient_clip_val: .01
+
+# Model configuration
+model:
+  class_path: src.lit_models.LitMAE
+  init_args:
+    # total_batch_size: 4096
+    lr: 1.5e-4
+    weight_decay: 0.05
+    mask_ratio: 0.75
+    warmup_epochs: 40
+    image_size: 96
+    patch_size: 6 # (96 // 6) ** 2 = 256 patches
+    enc_emb_dim: 516 # like vit-tiny
+    dec_emb_dim: 516
+    encoder_layer: 12
+    encoder_head: 12
+    decoder_layer: 8
+    decoder_head: 12
+
+# Data module configuration
+data:
+  class_path: src.datasets.STL10Data
+  init_args:
+    data_dir: data/
+    batch_size: 512
+    train_workers: 6
+    val_workers: 2
